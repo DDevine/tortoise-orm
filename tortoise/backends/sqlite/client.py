@@ -1,11 +1,9 @@
 import asyncio
 import os
-import sqlite3
 from functools import wraps
 from typing import Any, Callable, List, Optional, Sequence, Tuple, TypeVar
 
 import aiosqlite
-
 from tortoise.backends.base.client import (
     BaseDBAsyncClient,
     BaseTransactionWrapper,
@@ -16,7 +14,16 @@ from tortoise.backends.base.client import (
 )
 from tortoise.backends.sqlite.executor import SqliteExecutor
 from tortoise.backends.sqlite.schema_generator import SqliteSchemaGenerator
-from tortoise.exceptions import IntegrityError, OperationalError, TransactionManagementError
+from tortoise.exceptions import (
+    IntegrityError,
+    OperationalError,
+    TransactionManagementError,
+)
+
+try:
+    from supersqlite import sqlite3
+except ImportError:
+    import sqlite3
 
 FuncType = Callable[..., Any]
 F = TypeVar("F", bound=FuncType)
@@ -38,7 +45,9 @@ def translate_exceptions(func: F) -> F:
 class SqliteClient(BaseDBAsyncClient):
     executor_class = SqliteExecutor
     schema_generator = SqliteSchemaGenerator
-    capabilities = Capabilities("sqlite", daemon=False, requires_limit=True, inline_comment=True)
+    capabilities = Capabilities(
+        "sqlite", daemon=False, requires_limit=True, inline_comment=True
+    )
 
     def __init__(self, file_path: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -133,7 +142,9 @@ class SqliteClient(BaseDBAsyncClient):
             return (connection.total_changes - start) or len(rows), rows
 
     @translate_exceptions
-    async def execute_query_dict(self, query: str, values: Optional[list] = None) -> List[dict]:
+    async def execute_query_dict(
+        self, query: str, values: Optional[list] = None
+    ) -> List[dict]:
         query = query.replace("\x00", "'||CHAR(0)||'")
         async with self.acquire_connection() as connection:
             self.log.debug("%s: %s", query, values)
